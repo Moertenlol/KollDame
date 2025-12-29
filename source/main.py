@@ -3,7 +3,13 @@ from PIL import Image
 import random
 import sys
 import os
+import ollama
+from ollamainteract import get_ai_move
+from Button import Button
 pygame.init()
+
+# KI Variable Area
+
 
 # Preset Bereich
 turnAfterCapture = False  # Track whether the current turn is part of a capture sequence
@@ -24,6 +30,10 @@ boardedgefromtop = (display.current_h - gamewidth) // 2
 capturingPiece = None  # Track the piece that just captured
 highlightedPiece = None
 currMove = 'Green'
+playingas = 'Black' #MERKEN DAS SCHWARZ WARUM AUCH IMMER ALS ERSTES DRAN IST NICHT VERGESSEN IDK WIE LANGE NOCH 
+playingagainstai = False
+enemyai = "llama3.2"
+enemyselected = False
 
 # Getter Bereich
 
@@ -75,6 +85,7 @@ def drawboard(screen, boardgrid, rows, width):
         for spot in row:
             spot.draw(screen)
     drawboardgrid(screen, rows, width)
+    drawlettersandnumbers(screen, rows, width)
     pygame.display.update()
 
 def make_boardgrid(rows, cols, width):
@@ -85,11 +96,11 @@ def make_boardgrid(rows, cols, width):
         boardgrid.append([])
         for j in range(cols):
             gridspot = Gridspot(j,i, gap)
-            if (i-j) % 2 == 0:
+            if (i-j) % 2 == 1:
                 gridspot.colour=(0,0,0)
-            if ((i+j)%2==0) and (i<3):
+            if ((i+j)%2==1) and (i<3):
                 gridspot.piece = Piece("Red")
-            elif((i+j)%2==0) and i>4:
+            elif((i+j)%2==1) and i>4:
                 gridspot.piece=Piece("Green")
             count+=1
             boardgrid[i].append(gridspot)
@@ -101,6 +112,22 @@ def drawboardgrid(screen, rows, width):
         pygame.draw.line(screen, (0,0,0), (boardedgefromleft, i * gap + boardedgefromtop), (width + boardedgefromleft -5, i * gap +boardedgefromtop ))
         for j in range(cols+1):
             pygame.draw.line(screen, (0,0,0), (j * gap + boardedgefromleft, boardedgefromtop), (j * gap + boardedgefromleft , width + boardedgefromtop -5))
+
+def drawlettersandnumbers(screen, rows, width):
+    global playingas 
+    gap = width // rows
+    font = pygame.font.SysFont("Times New Roman" , 36)
+    if playingas == "White":
+        letters = ['a','b','c','d','e','f','g','h']
+        numbers = ['1','2','3','4','5','6','7','8']
+    else:
+        letters = ['h','g','f','e','d','c','b','a']
+        numbers = ['8','7','6','5','4','3','2','1']
+    for i in range(rows):
+        letter_surf = font.render(letters[i], True, (0,0,0))
+        screen.blit(letter_surf, (boardedgefromleft + i * gap + gap // 2 - letter_surf.get_width() // 2, boardedgefromtop + width + 5))
+        number_surf = font.render(numbers[i], True, (0,0,0))
+        screen.blit(number_surf, (boardedgefromleft -36, boardedgefromtop + i * gap + gap // 2 - number_surf.get_height() // 2))
 
 class Piece:
     def __init__(self, team):
@@ -136,7 +163,7 @@ def resetColours(boardgrid, node):
 
         for colouredNodes in positions:
             posX, posY = colouredNodes
-            boardgrid[posX][posY].colour = (0, 0, 0) if (posX - posY) % 2 == 0 else (255, 255, 255)
+            boardgrid[posX][posY].colour = (0, 0, 0) if (posX - posY) % 2 == 1 else (255, 255, 255)
 
 def HighlightpotentialMoves(piecePosition, boardgrid):
     global turnAfterCapture
@@ -188,6 +215,20 @@ def generatePotentialMoves(nodePosition, boardgrid):
                             captures.append((jumpColumn, jumpRow))
     return captures, moves
 
+def analyzeboardstate(boardgrid):
+    board_state = []
+    for row in boardgrid:
+        board_row = []
+        for spot in row:
+            if spot.piece:
+                if spot.piece.team == "Red":
+                    board_row.append(1)
+                else:
+                    board_row.append(2)
+            else:
+                board_row.append(0)
+        board_state.append(board_row)
+    return board_state
 """
 Error with locating opssible moves row col error
 """
@@ -236,107 +277,238 @@ def getAllCapturingPieces(currMove, boardgrid):
                     capturingPieces.append((rowIndex, colIndex))
     return capturingPieces
         
+def selectionscreencreate():
+    # create Checkers Header
+    text = "Checkers"
+    headerfont = pygame.font.SysFont("Times New Roman", 72)
+    header = headerfont.render(text, True, (0,0,0))
+    screen.blit(header, (display.current_w // 2 - header.get_width() // 2, 100))
+    text = "Select your enemy type:"
+    subheaderfont = pygame.font.SysFont("Times New Roman", 48)
+    subheader = subheaderfont.render(text, True, (0,0,0))
+    screen.blit(subheader, (display.current_w // 2 - subheader.get_width() // 2, display.current_h // 2 -150))
+    global playingagainstai
+    global enemyaioption
+    enemyaioption = Button((200,200,0),display.current_w // 2 - 450, display.current_h // 2-50, 300, 100, "AI Player", 36)
+    enemyaioption.draw(screen,"Times New Roman",(0,0,0))
+    global enemyhumanoption
+    enemyhumanoption = Button((200,200,0),display.current_w // 2 +150, display.current_h // 2-50, 300, 100, "Human Player", 36)
+    enemyhumanoption.draw(screen,"Times New Roman",(0,0,0))
+    pygame.display.flip()
+
+def aiselectionscreencreate():
+    # create Checkers Header
+    text = "Checkers"
+    headerfont = pygame.font.SysFont("Times New Roman", 72)
+    header = headerfont.render(text, True, (0,0,0))
+    screen.blit(header, (display.current_w // 2 - header.get_width() // 2, 100))
+    text = "Select your enemy AI:"
+    subheaderfont = pygame.font.SysFont("Times New Roman", 48)
+    subheader = subheaderfont.render(text, True, (0,0,0))
+    screen.blit(subheader, (display.current_w // 2 - subheader.get_width() // 2, 200))
+    # create buttons for enemy AI selection
+    global enemyaioption1
+    enemyaioption1 = Button((200,200,0),display.current_w // 2 - 150, 350, 300, 100, "Ollama Llama3.2", 36)
+    enemyaioption1.draw(screen,"Times New Roman",(0,0,0))
+    global enemyaioption2
+    enemyaioption2 = Button((200,200,0),display.current_w // 2 - 150, 500, 300, 100, "OpenAI GPT-4o", 36)
+    enemyaioption2.draw(screen,"Times New Roman",(0,0,0))
+    global enemyaioption3
+    enemyaioption3 = Button((200,200,0),display.current_w // 2 - 150, 650, 300, 100, "Homemade AI", 36)
+    enemyaioption3.draw(screen,"Times New Roman",(0,0,0))
+    pygame.display.flip()
+
+def selectionscreenremove():
+    pygame.draw.rect(screen, (255,255,255), (0,0, display.current_w, display.current_h))
+    pygame.display.flip()
+
 
 if __name__ == "__main__":
     grid = make_boardgrid(rows, cols, gamewidth)
     highlightedPiece = None
     currMove = 'Green'
-
-    while True:
+    selectionscreencreate()
+    while not enemyselected:
+        screen.fill((255,255,255))
         for event in pygame.event.get():
             if event.type== pygame.QUIT:
                 onexit()
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                clickedgridpos = getboardgridpos(rows, gamewidth)
-                if clickedgridpos is not None:
-                    ClickedPositionColumn, ClickedPositionRow = clickedgridpos
+                mousepos = pygame.mouse.get_pos()
+                if not playingagainstai:
+                    if enemyhumanoption.isOver(mousepos):
+                        enemyselected = True
+                        selectionscreenremove()
+                    if enemyaioption.isOver(mousepos):
+                        playingagainstai = True
+                        selectionscreenremove()
+                        aiselectionscreencreate()
 
-                    if turnAfterCapture:
-                        # Enforce that only the capturing piece can move again
-                        if capturingPiece == highlightedPiece:
-                            captures, _ = generatePotentialMoves(capturingPiece, grid)
-                            if clickedgridpos in captures:  # Check if the clicked position is a valid capture
-                                # Allow the capturing piece to make another capture
-                                resetColours(grid, capturingPiece)
-                                currMove = move(grid, capturingPiece, clickedgridpos)
-                                capturingPiece = clickedgridpos  # Update capturingPiece to the new position
-                                highlightedPiece = clickedgridpos  # Update highlightedPiece
+                else:
+                    if enemyaioption1.isOver(mousepos):
+                        enemyai = "llama3.2"
+                        enemyselected = True
+                        playingagainstai = True
+                        selectionscreenremove()
+                    if enemyaioption2.isOver(mousepos):
+                        enemyai = "gpt-4o"
+                        enemyselected = True
+                        selectionscreenremove()
+                        playingagainstai = True
+                    if enemyaioption3.isOver(mousepos):
+                        enemyai = "homemade"
+                        enemyselected = True
+                        selectionscreenremove()
+                        playingagainstai = True
+                    
+    if not playingagainstai:
+        while True:
+            screen.fill((255,255,255))
+            for event in pygame.event.get():
+                if event.type== pygame.QUIT:
+                    onexit()
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    clickedgridpos = getboardgridpos(rows, gamewidth)
+                    if clickedgridpos is not None:
+                        ClickedPositionColumn, ClickedPositionRow = clickedgridpos
+
+                        if turnAfterCapture:
+                            # Enforce that only the capturing piece can move again
+                            if capturingPiece == highlightedPiece:
                                 captures, _ = generatePotentialMoves(capturingPiece, grid)
-                                if captures:
-                                    HighlightpotentialMoves(capturingPiece, grid)  # Highlight next possible captures
-                                else:
-                                    # No further captures are possible, reset capturingPiece and switch turn
-                                    print("No further captures are possible.")
-                                    capturingPiece = None
-                                    highlightedPiece = None  # Reset highlightedPiece
-                                    currMove = opposite(currMove)  # Switch turn
-                                    turnAfterCapture = False  # End capture sequence
-                                    resetColours(grid, clickedgridpos)  # Reset the board colors
-                                    drawboard(screen, grid, rows, gamewidth)  # Redraw the board
-                            else:
-                                print("Invalid move. You must capture one of the highlighted positions.")
-                        else:
-                            print("Only the capturing piece can move again.")
-                    else:
-                        # Normal turn logic
-                        capturingPieces = getAllCapturingPieces(currMove, grid)  # Get all pieces that can capture
-
-                        if capturingPieces:
-                            # Enforce capturing moves
-                            if (ClickedPositionColumn, ClickedPositionRow) in capturingPieces:
-                                # Allow highlighting only for pieces that can capture
-                                if grid[ClickedPositionColumn][ClickedPositionRow].piece.team == currMove:
-                                    highlightedPiece = highlight(clickedgridpos, grid, highlightedPiece, currMove)
-                            elif grid[ClickedPositionColumn][ClickedPositionRow].colour == (75, 250, 240):
-                                # Allow moves only if they are capturing moves
-                                if highlightedPiece:
-                                    pieceColumn, pieceRow = highlightedPiece
-                                    if currMove == grid[pieceColumn][pieceRow].piece.team:
-                                        captures, _ = generatePotentialMoves((pieceColumn, pieceRow), grid)
-                                        if clickedgridpos in captures:
-                                            resetColours(grid, highlightedPiece)
-                                            currMove = move(grid, highlightedPiece, clickedgridpos)
-                                            capturingPiece = clickedgridpos if (abs(pieceColumn - ClickedPositionColumn) == 2) else None
-                                            highlightedPiece = clickedgridpos if capturingPiece else None  # Update highlightedPiece
-                                            if capturingPiece:
-                                                turnAfterCapture = True  # Start capture sequence
-                                                captures, _ = generatePotentialMoves(capturingPiece, grid)
-                                                if captures:
-                                                    HighlightpotentialMoves(capturingPiece, grid)  # Highlight next possible captures
-                                                else:
-                                                    # No further captures are possible, reset capturingPiece and switch turn
-                                                    capturingPiece = None
-                                                    highlightedPiece = None
-                                                    currMove = opposite(currMove)
-                                                    turnAfterCapture = False  # End capture sequence
-                                                    resetColours(grid, clickedgridpos)
-                                                    drawboard(screen, grid, rows, gamewidth)
-                                        else:
-                                            print("Invalid move. You must capture one of the highlighted positions.")
-                        else:
-                            # No capturing moves available, allow normal moves
-                            if grid[ClickedPositionColumn][ClickedPositionRow].colour == (75, 250, 240):
-                                # Handle move
-                                if highlightedPiece:
-                                    pieceColumn, pieceRow = highlightedPiece
-                                    if currMove == grid[pieceColumn][pieceRow].piece.team:
-                                        resetColours(grid, highlightedPiece)
-                                        currMove = move(grid, highlightedPiece, clickedgridpos)
-                                        capturingPiece = None  # Reset capturingPiece after a normal move
-                                        highlightedPiece = None  # Reset the highlighted piece after the move
+                                if clickedgridpos in captures:  # Check if the clicked position is a valid capture
+                                    # Allow the capturing piece to make another capture
+                                    resetColours(grid, capturingPiece)
+                                    currMove = move(grid, capturingPiece, clickedgridpos)
+                                    capturingPiece = clickedgridpos  # Update capturingPiece to the new position
+                                    highlightedPiece = clickedgridpos  # Update highlightedPiece
+                                    captures, _ = generatePotentialMoves(capturingPiece, grid)
+                                    if captures:
+                                        HighlightpotentialMoves(capturingPiece, grid)  # Highlight next possible captures
+                                    else:
+                                        # No further captures are possible, reset capturingPiece and switch turn
+                                        print("No further captures are possible.")
+                                        capturingPiece = None
+                                        highlightedPiece = None  # Reset highlightedPiece
+                                        currMove = opposite(currMove)  # Switch turn
+                                        turnAfterCapture = False  # End capture sequence
+                                        resetColours(grid, clickedgridpos)  # Reset the board colors
                                         drawboard(screen, grid, rows, gamewidth)  # Redraw the board
+                                else:
+                                    print("Invalid move. You must capture one of the highlighted positions.")
                             else:
-                                # Highlight normally if no captures are available
-                                if grid[ClickedPositionColumn][ClickedPositionRow].piece:
+                                print("Only the capturing piece can move again.")
+                        else:
+                            # Normal turn logic
+                            capturingPieces = getAllCapturingPieces(currMove, grid)  # Get all pieces that can capture
+
+                            if capturingPieces:
+                                # Enforce capturing moves
+                                if (ClickedPositionColumn, ClickedPositionRow) in capturingPieces:
+                                    # Allow highlighting only for pieces that can capture
                                     if grid[ClickedPositionColumn][ClickedPositionRow].piece.team == currMove:
                                         highlightedPiece = highlight(clickedgridpos, grid, highlightedPiece, currMove)
+                                elif grid[ClickedPositionColumn][ClickedPositionRow].colour == (75, 250, 240):
+                                    # Allow moves only if they are capturing moves
+                                    if highlightedPiece:
+                                        pieceColumn, pieceRow = highlightedPiece
+                                        if currMove == grid[pieceColumn][pieceRow].piece.team:
+                                            captures, _ = generatePotentialMoves((pieceColumn, pieceRow), grid)
+                                            if clickedgridpos in captures:
+                                                resetColours(grid, highlightedPiece)
+                                                currMove = move(grid, highlightedPiece, clickedgridpos)
+                                                capturingPiece = clickedgridpos if (abs(pieceColumn - ClickedPositionColumn) == 2) else None
+                                                highlightedPiece = clickedgridpos if capturingPiece else None  # Update highlightedPiece
+                                                if capturingPiece:
+                                                    turnAfterCapture = True  # Start capture sequence
+                                                    captures, _ = generatePotentialMoves(capturingPiece, grid)
+                                                    if captures:
+                                                        HighlightpotentialMoves(capturingPiece, grid)  # Highlight next possible captures
+                                                    else:
+                                                        # No further captures are possible, reset capturingPiece and switch turn
+                                                        capturingPiece = None
+                                                        highlightedPiece = None
+                                                        currMove = opposite(currMove)
+                                                        turnAfterCapture = False  # End capture sequence
+                                                        resetColours(grid, clickedgridpos)
+                                                        drawboard(screen, grid, rows, gamewidth)
+                                            else:
+                                                print("Invalid move. You must capture one of the highlighted positions.")
+                            else:
+                                # No capturing moves available, allow normal moves
+                                if grid[ClickedPositionColumn][ClickedPositionRow].colour == (75, 250, 240):
+                                    # Handle move
+                                    if highlightedPiece:
+                                        pieceColumn, pieceRow = highlightedPiece
+                                        if currMove == grid[pieceColumn][pieceRow].piece.team:
+                                            resetColours(grid, highlightedPiece)
+                                            currMove = move(grid, highlightedPiece, clickedgridpos)
+                                            capturingPiece = None  # Reset capturingPiece after a normal move
+                                            highlightedPiece = None  # Reset the highlighted piece after the move
+                                            drawboard(screen, grid, rows, gamewidth)  # Redraw the board
+                                else:
+                                    # Highlight normally if no captures are available
+                                    if grid[ClickedPositionColumn][ClickedPositionRow].piece:
+                                        if grid[ClickedPositionColumn][ClickedPositionRow].piece.team == currMove:
+                                            highlightedPiece = highlight(clickedgridpos, grid, highlightedPiece, currMove)
 
 
-        drawboard(screen, grid, rows, gamewidth)
+            drawboard(screen, grid, rows, gamewidth)
+    else:
+        while True:
+            screen.fill((255,255,255))
+            for event in pygame.event.get():
+                if event.type== pygame.QUIT:
+                    onexit()
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if currMove == playingas:
+                        clickedgridpos = getboardgridpos(rows, gamewidth)
+                        if clickedgridpos is not None:
+                            ClickedPositionColumn, ClickedPositionRow = clickedgridpos
 
+                            if turnAfterCapture:
+                                # Enforce that only the capturing piece can move again
+                                if capturingPiece == highlightedPiece:
+                                    captures, _ = generatePotentialMoves(capturingPiece, grid)
+                                    if clickedgridpos in captures:  # Check if the clicked position is a valid capture
+                                        # Allow the capturing piece to make another capture
+                                        resetColours(grid, capturingPiece)
+                                        currMove = move(grid, capturingPiece, clickedgridpos)
+                                        capturingPiece = clickedgridpos  # Update capturingPiece to the new position
+                                        highlightedPiece = clickedgridpos  # Update highlightedPiece
+                                        captures, _ = generatePotentialMoves(capturingPiece, grid)
+                                        if captures:
+                                            HighlightpotentialMoves(capturingPiece, grid)  # Highlight next possible captures
+                                        else:
+                                            # No further captures are possible, reset capturingPiece and switch turn
+                                            print("No further captures are possible.")
+                                            capturingPiece = None
+                                            highlightedPiece = None  # Reset highlightedPiece
+                                            currMove = opposite(currMove)  # Switch turn
+                                            turnAfterCapture = False  # End capture sequence
+                                            resetColours(grid, clickedgridpos)  # Reset the board colors
+                                            drawboard(screen, grid, rows, gamewidth)  # Redraw the board
+                                    else:
+                                        print("Invalid move. You must capture one of the highlighted positions.")
+                                else:
+                                    print("Only the capturing piece can move again.")
+                            else:
+                                # Normal turn logic
+                                capturingPieces = getAllCapturingPieces(currMove, grid)  # Get all pieces that can capture
 
+                                if capturingPieces:
+                                    # Enforce capturing moves
+                                    if (ClickedPositionColumn, ClickedPositionRow) in capturingPieces:
+                                        # Allow highlighting only for pieces that can capture
+                                        if grid[ClickedPositionColumn][ClickedPositionRow].piece.team == currMove:
+                                            highlightedPiece = highlight(clickedgridpos, grid, highlightedPiece, currMove)
+            drawboard(screen, grid, rows, gamewidth)
 
 
 
