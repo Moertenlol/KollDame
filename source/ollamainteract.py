@@ -10,7 +10,6 @@ def ai_select_move(board_state, color, legal_moves):
         notation = "Files h-a right→left (col 0=h, col 7=a), Ranks 1-8 bottom→top (row 7=rank 1, row 0=rank 8)"
     move_amount = len(legal_moves)
     moves_list = "\n".join(f"{i}: {move}" for i, move in enumerate(legal_moves[:10]))  # Top 10
-    print(moves_list)
 
 
     prompt = f"""
@@ -36,9 +35,7 @@ def ai_select_move(board_state, color, legal_moves):
             {'role': 'system', 'content': 'You are a checkers AI. Be fast and legal.'},
             {'role': 'user', 'content': prompt}
         ])
-        print("fdghjkljghfdghjkljhgfdghj",move_amount)
         index = response['message']['content'].strip()
-        print(index)
         if not index.isdigit() or not (1 <= int(index) <= move_amount):
             print("Invalid AI response. Rerunning")
             return ai_select_move(board_state, color, legal_moves)
