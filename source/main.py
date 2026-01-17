@@ -477,11 +477,8 @@ def aiselectionscreencreate():
     global enemyaioption1
     enemyaioption1 = Button((200,200,0),display.current_w // 2 - 150, 350, 300, 100, "Ollama Llama3.2", 36)
     enemyaioption1.draw(screen,"Times New Roman",(0,0,0))
-    global enemyaioption2
-    enemyaioption2 = Button((200,200,0),display.current_w // 2 - 150, 500, 300, 100, "OpenAI GPT-4o", 36)
-    enemyaioption2.draw(screen,"Times New Roman",(0,0,0))
     global enemyaioption3
-    enemyaioption3 = Button((200,200,0),display.current_w // 2 - 150, 650, 300, 100, "Homemade AI", 36)
+    enemyaioption3 = Button((200,200,0),display.current_w // 2 - 150, 500, 300, 100, "Homemade AI", 36)
     enemyaioption3.draw(screen,"Times New Roman",(0,0,0))
     pygame.display.flip()
 
@@ -561,11 +558,6 @@ if __name__ == "__main__":
                 else:
                     if enemyaioption1.isOver(mousepos):
                         enemyai = "llama3.2"
-                        enemyselected = True
-                        playingagainstai = True
-                        selectionscreenremove()
-                    if enemyaioption2.isOver(mousepos):
-                        enemyai = "gpt-4o"
                         enemyselected = True
                         playingagainstai = True
                         selectionscreenremove()
