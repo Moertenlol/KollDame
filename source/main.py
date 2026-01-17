@@ -6,7 +6,7 @@ import os
 import ollama
 from ollamainteract import format_ai_move
 from Button import Button
-from homemadeai import select_best_move
+from homemadeai import select_best_move, rate_move
 pygame.init()
 
 # KI Variable Area
@@ -37,6 +37,7 @@ enemyai = "llama3.2"
 enemyselected = False
 aimoverequested = False
 colorontop = "Red"
+score_list = []
 
 # Getter Bereich
 
@@ -392,7 +393,6 @@ def checkwinbycapture(boardgrid):
                     redpieces +=1
                 else:
                     greenpieces +=1
-    print(redpieces, greenpieces)
     if redpieces ==0:
         return "Green"
     elif greenpieces ==0:
@@ -415,6 +415,10 @@ def endcheck(grid, currMove):
     if checkwinbycaptureresult or checkwinbystalemateresult:
         winner = checkwinbycaptureresult if checkwinbycaptureresult else checkwinbystalemateresult
         loser = opposite(winner)
+        global playingagainstai, enemyai, score_list
+        if playingagainstai and enemyai == "llama3.2":
+            average_score = sum(score_list) / len(score_list)
+            print(f"Average move score for the AI: {average_score}")
         resultboardcreate(winner, loser)
         pygame.time.delay(10000)
         onexit()
@@ -580,7 +584,6 @@ if __name__ == "__main__":
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    print(generatelegalmoves(currMove, grid))
                     clickedgridpos = getboardgridpos(rows, gamewidth)
                     if clickedgridpos is not None:
                         ClickedPositionColumn, ClickedPositionRow = clickedgridpos 
@@ -599,7 +602,7 @@ if __name__ == "__main__":
                                         HighlightpotentialMoves(capturingPiece, grid)  # Highlight next possible captures
                                     else:
                                         # No further captures are possible, reset capturingPiece and switch turn
-                                        print("No further captures are possible.")
+
                                         capturingPiece = None
                                         highlightedPiece = None  # Reset highlightedPiece
                                         endcheck(grid, currMove)
@@ -607,10 +610,6 @@ if __name__ == "__main__":
                                         turnAfterCapture = False  # End capture sequence
                                         resetColours(grid, clickedgridpos)  # Reset the board colors
                                         drawboard(screen, grid, rows, gamewidth)  # Redraw the board
-                                else:
-                                    print("Invalid move. You must capture one of the highlighted positions.")
-                            else:
-                                print("Only the capturing piece can move again.")
                         else:
                             # Normal turn logic
                             capturingPieces = getAllCapturingPieces(currMove, grid)  # Get all pieces that can capture
@@ -646,8 +645,6 @@ if __name__ == "__main__":
                                                         turnAfterCapture = False  # End capture sequence
                                                         resetColours(grid, clickedgridpos)
                                                         drawboard(screen, grid, rows, gamewidth)
-                                            else:
-                                                print("Invalid move. You must capture one of the highlighted positions.")
                             else:
                                 # No capturing moves available, allow normal moves
                                 if grid[ClickedPositionColumn][ClickedPositionRow].colour == (75, 250, 240):
@@ -698,7 +695,6 @@ if __name__ == "__main__":
                                             HighlightpotentialMoves(capturingPiece, grid)  # Highlight next possible captures
                                         else:
                                             # No further captures are possible, reset capturingPiece and switch turn
-                                            print("No further captures are possible.")
                                             capturingPiece = None
                                             highlightedPiece = None  # Reset highlightedPiece
                                             endcheck(grid, currMove)
@@ -706,10 +702,6 @@ if __name__ == "__main__":
                                             turnAfterCapture = False  # End capture sequence
                                             resetColours(grid, clickedgridpos)  # Reset the board colors
                                             drawboard(screen, grid, rows, gamewidth)  # Redraw the board
-                                    else:
-                                        print("Invalid move. You must capture one of the highlighted positions.")
-                                else:
-                                    print("Only the capturing piece can move again.")
                             else:
                                 # Normal turn logic
                                 capturingPieces = getAllCapturingPieces(currMove, grid)  # Get all pieces that can capture
@@ -745,8 +737,6 @@ if __name__ == "__main__":
                                                             turnAfterCapture = False  # End capture sequence
                                                             resetColours(grid, clickedgridpos)
                                                             drawboard(screen, grid, rows, gamewidth)
-                                                else:
-                                                    print("Invalid move. You must capture one of the highlighted positions.")
                                 else:
                                     # No capturing moves available, allow normal moves
                                     if grid[ClickedPositionColumn][ClickedPositionRow].colour == (75, 250, 240):
@@ -783,10 +773,13 @@ if __name__ == "__main__":
                         ai_team = opposite(playingas)  # AI plays as the opposite team
                         board_str = '\n'.join([' '.join(map(str, row)) for row in board_state])
                         legal_moves = generatelegalmoves(currMove, grid)  # Pass the correct team to generatelegalmoves
-                        print(legal_moves)
                         ai_move_origin, ai_move_destination = format_ai_move(board_str, ai_team, legal_moves)
                         
                     if ai_move_origin:
+                        print(ai_move_origin, ai_move_destination)
+                        formatedaimove = f"{ai_move_origin[0]}{ ai_move_origin[1]}-{ai_move_destination[0]}{ai_move_destination[1]}"
+                        score = rate_move(generatelegalmoves(currMove, grid), grid, currMove, colorontop, formatedaimove )
+                        score_list.append(score)
                         if not ai_move_destination:
                             # Handle multi-jump move
                             ai_move = ai_move_origin.split("-")
@@ -820,8 +813,6 @@ if __name__ == "__main__":
                                 origin_row = int(ai_move_origin[1]) - 1              # rank 1=bottom (row 0), rank 8=top (row 7)
                                 dest_col = 7 - (ord(ai_move_destination[0]) - ord('a'))
                                 dest_row = int(ai_move_destination[1]) - 1
-                            print(ai_move_origin, ai_move_destination)
-                            print(origin_row, origin_col, dest_row, dest_col)
                             move(grid, (origin_row, origin_col), (dest_row, dest_col))
                             aimoverequested = False  # Reset flag after single move
                         drawboard(screen, grid, rows, gamewidth)
@@ -833,7 +824,6 @@ if __name__ == "__main__":
                     bestmove = select_best_move(generatelegalmoves(currMove, grid), grid, currMove, colorontop)
                     start_col, start_row = bestmove[0], bestmove[1]
                     end_col, end_row = bestmove[3], bestmove[4]
-                    print(bestmove)
                     start_row, start_col = notation_to_position(start_row, start_col, colorontop)
                     end_row, end_col = notation_to_position(end_row, end_col, colorontop)
                     move(grid, (int(start_col), int(start_row)), (int(end_col), int(end_row)))
