@@ -30,7 +30,6 @@ def score_move(grid, start_pos, end_pos, currMove, colorontop):
     # 5. Safety
     threatened = threatened_check(grid, currMove)
     threatened_after_move = threatened_check_after_move(grid, (start_col,start_row),(end_col,end_row))
-    print("Threatened before move:", threatened, "after move:", threatened_after_move)
     if threatened > threatened_after_move:
         score += 700  # Move to safer position
     if threatened < threatened_after_move:
@@ -51,15 +50,11 @@ def threatened_check(board, currMove):
     threat_count = 0
     enemy_moves = generatelegalmoves(currMove, board)
     
-    # Debugging output to trace generatelegalmoves and threat calculation
-    print("Calculating threats for currMove:", currMove)
-    print("Enemy moves:", enemy_moves)
+
     for move in enemy_moves:
         start_pos, end_pos = int(move[1]), int(move[4])
         if abs(end_pos - start_pos) == 2:
-            print("Threat detected from", start_pos, "to", end_pos)
             threat_count += 1
-    print("Total threats:", threat_count)
     
     # Updated logic to check if a piece is in front and can be taken
     for row in range(len(board)):
@@ -121,15 +116,10 @@ def threatened_check_after_move(board, start_pos, end_pos):
     currMove = moving_piece.team
     enemy_moves = generatelegalmoves(currMove, temp_board)
     
-    # Debugging output to trace generatelegalmoves and threat calculation
-    print("Simulating move from", start_pos, "to", end_pos)
-    print("Enemy moves after move:", enemy_moves)
     for move in enemy_moves:
         start_pos, end_pos = int(move[1]), int(move[4])
         if abs(int(end_pos) - int(start_pos)) == 2:
-            print("Threat detected from", start_pos, "to", end_pos)
             threat_count += 1
-    print("Total threats after move:", threat_count)
     
     # Updated logic to check if a piece is in front and can be taken after a move
     for row in range(len(temp_board)):
@@ -172,7 +162,6 @@ def select_best_move(legal_moves, grid, currMove, colorontop):
     move_score =[]
     for legal_move in legal_moves:
         move_score.append(score_move(grid, (legal_move[0], legal_move[1]),(legal_move[3],legal_move[4]), currMove, colorontop))
-        print(f"Move {legal_move} has score {move_score}")
     # if multiple moves have the same score, pick randomly among them
     if move_score.count(max(move_score)) > 1:
         best_moves = [i for i, score in enumerate(move_score) if score == max(move_score)]
@@ -185,3 +174,20 @@ def select_best_move(legal_moves, grid, currMove, colorontop):
         best_move = legal_moves[best_move_index]
 
     return best_move
+
+def rate_move(legal_moves, grid, currMove, colorontop, move_to_rate):
+    from main import generatelegalmoves
+    move_score =[]
+    for legal_move in legal_moves:
+        move_score.append(score_move(grid, (legal_move[0], legal_move[1]),(legal_move[3],legal_move[4]), currMove, colorontop))
+    #sort moves by score
+    sorted_moves = [move for _, move in sorted(zip(move_score, legal_moves), reverse=True)]
+    print(sorted_moves)
+    #find index of move_to_rate in sorted moves
+    for i, move in enumerate(sorted_moves):
+        print(move,move_to_rate)
+        if move == move_to_rate:
+            index = i+1  #return rank (1-based)
+    score = (index / len(legal_moves)) * 100
+    print(score)
+    return score
