@@ -3,7 +3,13 @@ import ollama
 MODEL = 'llama3.2'
 
 def ai_select_move(board_state, color, legal_moves):
-
+    """
+    Tells the AI to select the best move using Ollama's language model, returning the move in algebraic notation.
+    Args:
+        board_state: A string representation of the current board state.
+        color: The color of the AI player ('Red' or 'Green').
+        legal_moves: A list of legal moves in algebraic notation.
+    """
     if color == 'Red':
         notation = "Files a-h left→right (col 0=a, col 7=h), Ranks 1-8 top→bottom (row 0=rank 1, row 7=rank 8)"
     else:
@@ -44,7 +50,14 @@ def ai_select_move(board_state, color, legal_moves):
     return legal_moves[int(index)-1]
 
 
-def format_ai_move(board_str, color, legal_moves):    
+def format_ai_move(board_str, color, legal_moves): 
+    """
+    Calls the AI to select a move and formats the output for the main game logic.
+    Args:
+        board_str: A string representation of the current board state.
+        color: The color of the AI player ('Red' or 'Green').
+        legal_moves: A list of legal moves in algebraic notation.
+    """   
     ai_move = ai_select_move(board_str, color, legal_moves)
     print(f"AI move: {ai_move}")
     ai_move_array = ai_move.split('-')
@@ -56,15 +69,3 @@ def format_ai_move(board_str, color, legal_moves):
         ai_move_destination = ai_move_array[1]
         ai_move_destination = ai_move_destination[0], ai_move_destination[1]
         return ai_move_origin, ai_move_destination
-
-def test_ai():
-    board_state = """0 1 0 1 0 1 0 1
-1 0 1 0 1 0 1 0
-0 1 0 1 0 1 0 1
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-2 0 2 0 2 0 2 0
-0 2 0 2 0 2 0 2
-2 0 2 0 2 0 2 0"""
-    color = 'Red'
-    legal_moves = ['1.: h6-g5', '2.: f6-g5', '3.: f6-e5', '4.: d6-e5', '5.: d6-c5', '6.: b6-c5', '7.: b6-a5']
