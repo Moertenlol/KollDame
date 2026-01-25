@@ -1,6 +1,15 @@
 import copy
 
 def score_move(grid, start_pos, end_pos, currMove, colorontop):
+    """
+    Gives a score to a potential move based on various strategic factors.
+    Args:
+        grid: The current board state as a 2D list.
+        start_pos: Tuple (col, row) of the starting position.
+        end_pos: Tuple (col, row) of the ending position.
+        currMove: The current player's turn.
+        colorontop: The color that is on top of the board.
+    """
     from main import notation_to_position, Piece
     score = 0
     start_col, start_row = start_pos[0], start_pos[1]
@@ -37,6 +46,15 @@ def score_move(grid, start_pos, end_pos, currMove, colorontop):
     return score
 
 def is_promotion(board, start_pos, end_pos, currMove, colorontop):
+    """
+    Checks if a move results in a promotion.
+    Args:
+        board: The current board state as a 2D list.
+        start_pos: Tuple (col, row) of the starting position.
+        end_pos: Tuple (col, row) of the ending position.
+        currMove: The current player's turn.
+        colorontop: The color that is on top of the board.
+    """
     if currMove == colorontop:
         promotion_row = 0
     else:
@@ -46,9 +64,15 @@ def is_promotion(board, start_pos, end_pos, currMove, colorontop):
         return True
 
 def threatened_check(board, currMove):
-    from main import generatelegalmoves
+    """
+    Calculates the number of threats to the current player's pieces.
+    Args:
+        board: The current board state as a 2D list.
+        currMove: The current player's turn.
+    """
+    from main import generate_legal_moves
     threat_count = 0
-    enemy_moves = generatelegalmoves(currMove, board)
+    enemy_moves = generate_legal_moves(currMove, board)
     
 
     for move in enemy_moves:
@@ -93,7 +117,14 @@ def threatened_check(board, currMove):
     return threat_count
 
 def threatened_check_after_move(board, start_pos, end_pos):
-    from main import generatelegalmoves, Gridspot
+    """
+    Calculates the number of threats to the current player's pieces after a hypothetical move.
+    Args:
+        board: The current board state as a 2D list.
+        start_pos: Tuple (col, row) of the starting position.
+        end_pos: Tuple (col, row) of the ending position.
+    """
+    from main import generate_legal_moves, Gridspot
 
     # Create a custom deep copy of the board
     temp_board = [[Gridspot(spot.row, spot.col, spot.x) for spot in row] for row in board]
@@ -114,7 +145,7 @@ def threatened_check_after_move(board, start_pos, end_pos):
     # Calculate threats
     threat_count = 0
     currMove = moving_piece.team
-    enemy_moves = generatelegalmoves(currMove, temp_board)
+    enemy_moves = generate_legal_moves(currMove, temp_board)
     
     for move in enemy_moves:
         start_pos, end_pos = int(move[1]), int(move[4])
@@ -158,7 +189,14 @@ def threatened_check_after_move(board, start_pos, end_pos):
     return threat_count
 
 def select_best_move(legal_moves, grid, currMove, colorontop):
-    from main import generatelegalmoves
+    """
+    Selects the best move from a list of legal moves based on their scores.
+    Args:
+        legal_moves: A list of legal moves in algebraic notation.
+        grid: The current board state as a 2D list.
+        currMove: The current player's turn.
+        colorontop: The color that is on top of the board.
+    """
     move_score =[]
     for legal_move in legal_moves:
         move_score.append(score_move(grid, (legal_move[0], legal_move[1]),(legal_move[3],legal_move[4]), currMove, colorontop))
@@ -176,7 +214,17 @@ def select_best_move(legal_moves, grid, currMove, colorontop):
     return best_move
 
 def rate_move(legal_moves, grid, currMove, colorontop, move_to_rate):
-    from main import generatelegalmoves
+    """
+    Rates a specific move among all legal moves based on their scores.
+    Is used for post-game analysis.
+    Args:
+        legal_moves: A list of legal moves in algebraic notation.
+        grid: The current board state as a 2D list.
+        currMove: The current player's turn.
+        colorontop: The color that is on top of the board.
+        move_to_rate: The specific move to rate in algebraic notation.
+    """
+    from main import generate_legal_moves
     move_score =[]
     for legal_move in legal_moves:
         move_score.append(score_move(grid, (legal_move[0], legal_move[1]),(legal_move[3],legal_move[4]), currMove, colorontop))
